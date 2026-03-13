@@ -1,0 +1,147 @@
+extend type Query {
+    # ── Task 14 — Wishlist ───────────────────────────────────────────────────
+    "Current wishlist (Task 14)."
+    wishlist(sort: WishlistSort, page: Int = 1, perPage: Int = 24): WishlistResult!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Queries\\WishlistQuery")
+
+    "Wishlist item count for header indicator (Task 14)."
+    wishlistCount: Int!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Queries\\WishlistCountQuery")
+
+    # ── Task 15 — Compare ────────────────────────────────────────────────────
+    "Compare products (Task 15)."
+    compareProducts(category_id: ID!, filter: CompareFilter = ALL): CompareResult!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Queries\\CompareQuery")
+
+    "Categories with saved compare items (Task 15)."
+    compareCategories: [CategoryRef!]!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Queries\\CompareCategoriesQuery")
+
+    # ── Task 16 — Search ─────────────────────────────────────────────────────
+    "Quick search suggest results grouped by category (Task 16a)."
+    searchSuggest(query: String!, limit: Int = 4): [SearchSuggestGroup!]!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Queries\\SearchSuggestQuery")
+
+    "Full search page with filters and pagination (Task 16b)."
+    search(
+        query: String!
+        filters: ProductFiltersInput
+        sort: ProductSort
+        page: Int = 1
+        perPage: Int = 24
+    ): SearchResult!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Queries\\SearchQuery")
+}
+
+extend type Mutation {
+    # ── Wishlist (Task 14) ────────────────────────────────────────────────────
+    addToWishlist(article: String!): WishlistActionResult!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\AddToWishlistMutation")
+
+    removeFromWishlist(article: String!): WishlistActionResult!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\RemoveFromWishlistMutation")
+
+    clearWishlist: Boolean!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\ClearWishlistMutation")
+
+    # ── Compare (Task 15) ─────────────────────────────────────────────────────
+    addToCompare(article: String!): CompareActionResult!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\AddToCompareMutation")
+
+    removeFromCompare(article: String!): Boolean!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\RemoveFromCompareMutation")
+
+    clearCompareCategory(category_id: ID!): Boolean!
+        @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\ClearCompareCategoryMutation")
+}
+
+# ── Enums ──────────────────────────────────────────────────────────────────────
+
+enum WishlistSort {
+    PRICE_ASC
+    PRICE_DESC
+    DATE_ADDED
+}
+
+enum CompareFilter {
+    ALL
+    SAME
+    DIFFERENT
+}
+
+# ── Types ──────────────────────────────────────────────────────────────────────
+
+type WishlistResult {
+    items: [ProductCard!]!
+    total: Int!
+    current_page: Int!
+    last_page: Int!
+}
+
+type WishlistActionResult {
+    success: Boolean!
+    count: Int!
+}
+
+type CategoryRef {
+    id: ID!
+    title: String!
+}
+
+type CompareResult {
+    products: [CompareProductItem!]!
+    attribute_groups: [CompareAttributeGroup!]!
+}
+
+type CompareProductItem {
+    id: ID!
+    slug: String!
+    title: String!
+    subtitle: String
+    image: String
+    rrp: Float!
+    brand: BrandRef
+}
+
+type CompareAttributeGroup {
+    title: String!
+    attributes: [CompareAttribute!]!
+}
+
+type CompareAttribute {
+    title: String!
+    values: [String]!
+    is_same: Boolean!
+}
+
+type CompareActionResult {
+    success: Boolean!
+    error: String
+}
+
+type SearchSuggestGroup {
+    category_title: String!
+    products: [SearchSuggestProduct!]!
+}
+
+type SearchSuggestProduct {
+    id: ID!
+    title: String!
+    image: String
+    article: String!
+    slug: String!
+    rrp: Float!
+}
+
+type SearchResult {
+    products: ProductPaginator
+    filters: ProductFilters
+    total: Int
+    category_counts: [SearchCategoryCount!]
+}
+
+type SearchCategoryCount {
+    category_id: ID!
+    category_title: String!
+    count: Int!
+}

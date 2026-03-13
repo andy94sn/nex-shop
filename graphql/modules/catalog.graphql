@@ -1,0 +1,320 @@
+extend type Query {
+    # ── Task 5 — Brands ─────────────────────────────────────────────────────
+    "Featured brands for homepage (Task 5a)."
+    featuredBrands(limit: Int = 8): [Brand!]!
+        @field(
+            resolver: "Modules\\Catalog\\GraphQL\\Queries\\FeaturedBrandsQuery"
+        )
+
+    "Paginated brand listing (Task 5b)."
+    brands(page: Int = 1, perPage: Int = 24): BrandPaginator!
+        @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\BrandsQuery")
+
+    "Single brand page with filtered product listing (Task 5c)."
+    brandPage(
+        slug: String!
+        filters: ProductFiltersInput
+        sort: ProductSort
+        page: Int = 1
+        perPage: Int = 24
+    ): BrandPageResult!
+        @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\BrandPageQuery")
+
+    # ── Task 6 — Category Menu ───────────────────────────────────────────────
+    "Category tree for header navigation, cached (Task 6)."
+    categoryMenu: [CategoryMenuItem!]!
+        @field(
+            resolver: "Modules\\Catalog\\GraphQL\\Queries\\CategoryMenuQuery"
+        )
+
+    # ── Task 7 — Category Listing ────────────────────────────────────────────
+    "Category page with products, filters, and pagination (Task 7)."
+    categoryPage(
+        slug: String!
+        filters: ProductFiltersInput
+        sort: ProductSort
+        search: String
+        page: Int = 1
+        perPage: Int = 24
+    ): CategoryPageResult!
+        @field(
+            resolver: "Modules\\Catalog\\GraphQL\\Queries\\CategoryPageQuery"
+        )
+
+    # ── Task 8 — Product Page ────────────────────────────────────────────────
+    "Single product detail page (Task 8)."
+    product(slug: String!): Product
+        @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ProductQuery")
+
+    # ── Task 10 — Featured Categories ───────────────────────────────────────
+    "Featured categories for homepage (Task 10)."
+    featuredCategories: [FeaturedCategory!]!
+        @field(
+            resolver: "Modules\\Catalog\\GraphQL\\Queries\\FeaturedCategoriesQuery"
+        )
+}
+
+# ── Input types ──────────────────────────────────────────────────────────────
+
+input ProductFiltersInput {
+    brand_ids: [ID!]
+    price_min: Float
+    price_max: Float
+    credit_plan_ids: [ID!]
+    attributes: [AttributeFilterInput!]
+    category_ids: [ID!]
+}
+
+input AttributeFilterInput {
+    attribute_id: ID!
+    value_ids: [ID!]!
+}
+
+enum ProductSort {
+    PRICE_ASC
+    PRICE_DESC
+    NEWEST
+    DEFAULT
+}
+
+# ── Types ─────────────────────────────────────────────────────────────────────
+
+type Brand {
+    id: ID!
+    title: String!
+    slug: String!
+    logo: String
+    is_featured: Boolean!
+    featured_sort: Int!
+    products_count: Int
+    meta_title: String
+    meta_description: String
+}
+
+type BrandPaginator {
+    data: [Brand!]!
+    total: Int!
+    current_page: Int!
+    last_page: Int!
+    per_page: Int!
+}
+
+type BrandPageResult {
+    brand: Brand!
+    products: ProductPaginator!
+    filters: ProductFilters!
+}
+
+type Category {
+    id: ID!
+    parent_id: ID
+    slug: String!
+    title: String!
+    short_description: String
+    description: String
+    image: String
+    featured_image: String
+    is_active: Boolean!
+    is_hidden_in_store: Boolean!
+    is_hidden_in_menu: Boolean!
+    is_featured: Boolean!
+    featured_sort: Int!
+    children: [Category!]
+    meta_title: String
+    meta_description: String
+}
+
+type FeaturedCategory {
+    id: ID!
+    slug: String!
+    title: String!
+    featured_image: String
+    products_count: Int!
+}
+
+type CategoryMenuItem {
+    id: ID!
+    slug: String!
+    title: String!
+    image: String
+    products_count: Int!
+    children: [CategoryMenuItem!]
+}
+
+type CategoryPageResult {
+    category: CategoryDetail!
+    products: ProductPaginator!
+    filters: ProductFilters!
+    total: Int!
+    breadcrumb: [BreadcrumbItem!]!
+}
+
+type CategoryDetail {
+    id: ID!
+    slug: String!
+    title: String!
+    description: String
+    image: String
+    meta_title: String
+    meta_description: String
+    subcategories: [Category!]
+}
+
+type ProductPaginator {
+    data: [ProductCard!]!
+    total: Int!
+    current_page: Int!
+    last_page: Int!
+    per_page: Int!
+}
+
+type ProductCard {
+    id: ID!
+    slug: String!
+    title: String!
+    subtitle: String
+    variants: [ProductVariant!]!
+    short_description: String
+    description_sections: [ProductDescriptionSection!]!
+    description: String
+    article: String!
+    code: String!
+    image: String
+    rrp: Float!
+    rrp_old: Float
+    stock: Int!
+    is_new: Boolean!
+    discount_percentage: Int
+    best_credit_label: String
+    is_in_wishlist: Boolean!
+    is_in_cart: Boolean!
+    brand: BrandRef
+}
+
+type BrandRef {
+    id: ID!
+    title: String!
+}
+
+type ProductFilters {
+    brands: [BrandFilterOption!]!
+    price_min: Float!
+    price_max: Float!
+    credit_plans: [CreditPlanFilterOption!]!
+    attributes: [AttributeFilterGroup!]!
+    subcategories: [Category!]!
+}
+
+type BrandFilterOption {
+    id: ID!
+    title: String!
+    count: Int!
+}
+
+type CreditPlanFilterOption {
+    id: ID!
+    label: String!
+    count: Int!
+}
+
+type AttributeFilterGroup {
+    attribute_id: ID!
+    title: String!
+    values: [AttributeFilterValue!]!
+}
+
+type AttributeFilterValue {
+    value: String!
+    count: Int!
+}
+
+type BreadcrumbItem {
+    id: ID!
+    slug: String!
+    title: String!
+}
+
+type Product {
+    id: ID!
+    slug: String!
+    title: String!
+    subtitle: String
+    code: String!
+    article: String!
+    status: String!
+    is_new: Boolean!
+    is_new_until: Date
+    image: String
+    gallery: [ProductImage!]!
+    rrp: Float!
+    rrp_old: Float
+    price_eur: Float
+    stock: Int!
+    discount_percentage: Int
+    credit_min_rate: Float
+    brand: Brand
+    category: Category
+    breadcrumb: [BreadcrumbItem!]!
+    variants: [ProductVariant!]!
+    short_description: String
+    description_sections: [ProductDescriptionSection!]!
+    attribute_groups: [AttributeGroupWithValues!]!
+    youtube_url: String
+    attachments: [ProductAttachment!]!
+    meta_title: String
+    meta_description: String
+    credit_plans: [CreditPlanDetail!]!
+}
+
+type ProductImage {
+    id: ID!
+    path: String!
+    is_main: Boolean!
+    sort_order: Int
+}
+
+type ProductVariant {
+    id: ID!
+    linked_article: String!
+    color_value: String
+    color_label: String
+    option: String
+}
+
+type ProductDescriptionSection {
+    id: ID!
+    title: String
+    content: String
+    image: String
+    sort: Int!
+}
+
+type ProductAttachment {
+    id: ID!
+    title: String!
+    url: String!
+    file_type: String
+    file_size: String
+}
+
+type AttributeGroupWithValues {
+    id: ID!
+    title: String!
+    image: String
+    attributes: [AttributeWithValue!]!
+}
+
+type AttributeWithValue {
+    id: ID!
+    title: String!
+    value: String!
+}
+
+type CreditPlanDetail {
+    id: ID!
+    months: Int!
+    interest_label: String!
+    monthly_rate: Float!
+    total: Float!
+    is_zero_interest: Boolean!
+}

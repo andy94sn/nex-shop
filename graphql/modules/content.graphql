@@ -1,0 +1,129 @@
+extend type Query {
+    # ── Task 11 — Banners ────────────────────────────────────────────────────
+    "Active homepage banners sorted by order (Task 11)."
+    banners: [ShopBanner!]!
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\BannersQuery")
+
+    # ── Task 12 — Promo Banner ───────────────────────────────────────────────
+    "Single active promo banner or null (Task 12)."
+    promoBanner: PromoBanner
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\PromoBannerQuery")
+
+    # ── Task 9 — Pages ───────────────────────────────────────────────────────
+    "A CMS page by slug (Task 9a)."
+    page(slug: String!): Page
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\PageQuery")
+
+    "Active FAQ items sorted (Task 9b)."
+    faqItems: [FaqItem!]!
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\FaqItemsQuery")
+
+    "Contact page data with departments (Task 9d)."
+    contactPage: ContactPageResult!
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\ContactPageQuery")
+
+    # ── Task 13 — Footer ─────────────────────────────────────────────────────
+    "Footer settings (Task 13)."
+    footerSettings: FooterSettings!
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\FooterSettingsQuery")
+}
+
+extend type Mutation {
+    # ── Task 9b — Support Request ────────────────────────────────────────────
+    "Submit a support/help request (Task 9b)."
+    submitSupportRequest(
+        name: String!
+        email: String! @rules(apply: ["email"])
+        message: String!
+        page_source: String
+    ): SupportRequestResult!
+        @field(resolver: "Modules\\Content\\GraphQL\\Mutations\\SubmitSupportRequestMutation")
+}
+
+# ── Types ─────────────────────────────────────────────────────────────────────
+
+type ShopBanner {
+    id: ID!
+    title: String
+    image: String!
+    image_mobile: String
+    url: String
+    sort: Int!
+    valid_from: DateTime
+    valid_until: DateTime
+}
+
+type PromoBanner {
+    id: ID!
+    image: String!
+    image_mobile: String
+    url: String
+    title: String
+    subtitle: String
+    description: String
+    button_text: String
+    expires_at: DateTime
+}
+
+type Page {
+    id: ID!
+    slug: String!
+    title: String!
+    content: String
+    type: String!
+    meta_title: String
+    meta_description: String
+}
+
+type FaqItem {
+    id: ID!
+    question: String!
+    answer: String!
+    sort: Int!
+}
+
+type ContactPageResult {
+    title: String
+    intro_text: String
+    map_lat: Float
+    map_lng: Float
+    meta_title: String
+    meta_description: String
+    departments: [ContactDepartment!]!
+}
+
+type ContactDepartment {
+    id: ID!
+    title: String!
+    address: String
+    phone: String
+    email: String
+    schedule_mon_fri: JSON
+    schedule_sat: JSON
+    schedule_sun: JSON
+    schedule_break: JSON
+    sort: Int!
+}
+
+type FooterSettings {
+    footer_text: String
+    footer_logo: String
+    footer_logo_dark: String
+    social_links: [SiteLink!]!
+    messenger_links: [SiteLink!]!
+    payment_methods: [SiteLink!]!
+}
+
+type SiteLink {
+    id: ID!
+    type: String!
+    name: String!
+    url: String
+    icon: String
+    sort: Int!
+}
+
+type SupportRequestResult {
+    success: Boolean!
+    message: String
+}

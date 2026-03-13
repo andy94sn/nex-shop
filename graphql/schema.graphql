@@ -1,0 +1,29 @@
+"A translatable string value (returns value for the current locale)."
+scalar TranslatableString @scalar(class: "App\\GraphQL\\Scalars\\TranslatableString")
+
+"Arbitrary JSON data."
+scalar JSON @scalar(class: "App\\GraphQL\\Scalars\\JSON")
+
+"A datetime string with timezone."
+scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTimeUtc")
+
+"A date string (Y-m-d)."
+scalar Date @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\Date")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Import per-module schemas
+# ─────────────────────────────────────────────────────────────────────────────
+
+#import modules/settings.graphql
+#import modules/catalog.graphql
+#import modules/content.graphql
+#import modules/commerce.graphql
+#import modules/interactions.graphql
+#import modules/marketing.graphql
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Root Types — all fields added via "extend type" in the module schemas above
+# ─────────────────────────────────────────────────────────────────────────────
+
+type Query
+type Mutation

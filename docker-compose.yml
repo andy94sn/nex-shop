@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────
+  # PHP-FPM Application
+  # ─────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: nexdist_app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+    networks:
+      - nexdist
+    depends_on:
+      - mysql
+      - redis
+
+  # ─────────────────────────────────────────
+  # Nginx Web Server
+  # ─────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: nexdist_nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8005}:80"
+    volumes:
+      - .:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - nexdist
+    depends_on:
+      - app
+
+  # ─────────────────────────────────────────
+  # MySQL 8 Database
+  # ─────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: nexdist_mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT_FORWARD:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_DATABASE: ${DB_DATABASE:-nexdistribution}
+      MYSQL_USER: ${DB_USERNAME:-nexdist}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - nexdist_mysql_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - nexdist
+
+  # ─────────────────────────────────────────
+  # Redis Cache & Sessions
+  # ─────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: nexdist_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT_FORWARD:-6379}:6379"
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-secret}"
+    volumes:
+      - nexdist_redis_data:/data
+    networks:
+      - nexdist
+
+  # ─────────────────────────────────────────
+  # Queue Worker
+  # ─────────────────────────────────────────
+  queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: nexdist_queue
+    restart: unless-stopped
+    working_dir: /var/www
+    command: php artisan queue:work redis --sleep=3 --tries=3 --timeout=90
+    volumes:
+      - .:/var/www
+    networks:
+      - nexdist
+    depends_on:
+      - mysql
+      - redis
+
+  # ─────────────────────────────────────────
+  # Scheduler (Cron)
+  # ─────────────────────────────────────────
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: nexdist_scheduler
+    restart: unless-stopped
+    working_dir: /var/www
+    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction && sleep 60; done"
+    volumes:
+      - .:/var/www
+    networks:
+      - nexdist
+    depends_on:
+      - mysql
+      - redis
+
+  # ─────────────────────────────────────────
+  # Mailpit (local email testing)
+  # ─────────────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: nexdist_mailpit
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_HTTP_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+    networks:
+      - nexdist
+
+  # ─────────────────────────────────────────
+  # phpMyAdmin (optional DB GUI)
+  # ─────────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:5.2-apache
+    container_name: nexdist_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "${PMA_PORT:-8085}:80"
+    volumes:
+      - ./docker/phpmyadmin/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ${DB_USERNAME:-nexdist}
+      PMA_PASSWORD: ${DB_PASSWORD:-secret}
+    networks:
+      - nexdist
+    depends_on:
+      - mysql
+
+networks:
+  nexdist:
+    driver: bridge
+
+volumes:
+  nexdist_mysql_data:
+    driver: local
+  nexdist_redis_data:
+    driver: local

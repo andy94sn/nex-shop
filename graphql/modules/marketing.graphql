@@ -1,0 +1,73 @@
+extend type Query {
+    # ── Task 22 — Promotions ─────────────────────────────────────────────────
+    "Single promotion page (Task 22a)."
+    promotion(slug: String!, filters: ProductFiltersInput, sort: ProductSort, page: Int = 1, perPage: Int = 24): PromotionPageResult
+        @field(resolver: "Modules\\Marketing\\GraphQL\\Queries\\PromotionPageQuery")
+
+    "All promotions paginated (Task 22b)."
+    promotions(page: Int = 1, perPage: Int = 12): PromotionPaginator!
+        @field(resolver: "Modules\\Marketing\\GraphQL\\Queries\\PromotionsQuery")
+
+    "Active promotions widget — latest N (Task 22c)."
+    activePromotions(limit: Int = 4): [PromotionCard!]!
+        @field(resolver: "Modules\\Marketing\\GraphQL\\Queries\\ActivePromotionsQuery")
+
+    # ── Task 17 — Similar Products ───────────────────────────────────────────
+    "Similar products for product page (Task 17)."
+    similarProducts(product_slug: String!, limit: Int = 4): [ProductCard!]!
+        @field(resolver: "Modules\\Marketing\\GraphQL\\Queries\\SimilarProductsQuery")
+}
+
+extend type Mutation {
+    # ── Task 23 — Newsletter ──────────────────────────────────────────────────
+    "Subscribe to newsletter (Task 23)."
+    subscribe(
+        email: String! @rules(apply: ["email"])
+        name: String
+        phone: String
+    ): SubscribeResult!
+        @field(resolver: "Modules\\Marketing\\GraphQL\\Mutations\\SubscribeMutation")
+}
+
+# ── Types ──────────────────────────────────────────────────────────────────────
+
+type PromotionPageResult {
+    promotion: PromotionDetail!
+    products: ProductPaginator!
+    filters: ProductFilters!
+}
+
+type PromotionDetail {
+    id: ID!
+    slug: String!
+    title: String!
+    banner_image: String
+    banner_image_mobile: String
+    ends_at: DateTime
+    days_left: Int
+    meta_title: String
+    meta_description: String
+}
+
+type PromotionCard {
+    id: ID!
+    slug: String!
+    title: String!
+    banner_image: String
+    ends_at: DateTime
+    days_left: Int
+    status: String!
+}
+
+type PromotionPaginator {
+    data: [PromotionCard!]!
+    total: Int!
+    current_page: Int!
+    last_page: Int!
+    per_page: Int!
+}
+
+type SubscribeResult {
+    success: Boolean!
+    message: String
+}

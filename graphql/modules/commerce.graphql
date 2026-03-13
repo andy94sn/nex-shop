@@ -1,0 +1,154 @@
+extend type Query {
+    # ── Task 18 — Credit ─────────────────────────────────────────────────────
+    "Credit options for a product (Task 18)."
+    creditOptions(product_slug: String!): CreditOptionsResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CreditOptionsQuery")
+
+    # ── Task 19 — Coupon ─────────────────────────────────────────────────────
+    # (applied via mutation — see below)
+
+    # ── Task 20 — Shipping Regions ───────────────────────────────────────────
+    "Active shipping regions (Task 20)."
+    shippingRegions: [ShippingRegion!]!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\ShippingRegionsQuery")
+
+    # ── Task 21a — Cart ──────────────────────────────────────────────────────
+    "Current session cart (Task 21a)."
+    cart: CartResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CartQuery")
+
+    # ── Task 21b — Totals ────────────────────────────────────────────────────
+    "Calculate checkout totals dynamically (Task 21b)."
+    checkoutTotals: CheckoutTotals!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CheckoutTotalsQuery")
+}
+
+extend type Mutation {
+    # ── Cart actions (Task 21a) ───────────────────────────────────────────────
+    addToCart(article: String!, quantity: Int = 1): CartResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\AddToCartMutation")
+
+    removeFromCart(article: String!): CartResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\RemoveFromCartMutation")
+
+    updateCartQuantity(article: String!, quantity: Int!): CartResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\UpdateCartQuantityMutation")
+
+    clearCart: Boolean!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\ClearCartMutation")
+
+    # ── Checkout session setters (Task 21c) ───────────────────────────────────
+    setPaymentMethod(method: PaymentMethod!, credit_plan_id: ID, credit_extras: [CreditExtraInput!]): CheckoutTotals!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\SetPaymentMethodMutation")
+
+    setShippingRegion(region_id: ID!, address: String): CheckoutTotals!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\SetShippingRegionMutation")
+
+    applyCoupon(code: String!): CouponResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\ApplyCouponMutation")
+
+    removeCoupon: CheckoutTotals!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\RemoveCouponMutation")
+
+    # ── Place order (Task 21d) ────────────────────────────────────────────────
+    placeOrder(input: PlaceOrderInput!): PlaceOrderResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\PlaceOrderMutation")
+}
+
+# ── Enums ──────────────────────────────────────────────────────────────────────
+
+enum PaymentMethod {
+    CASH
+    CREDIT
+}
+
+# ── Input types ────────────────────────────────────────────────────────────────
+
+input CreditExtraInput {
+    extra_id: ID!
+    duration: Int!
+}
+
+input PlaceOrderInput {
+    contact_name: String!
+    contact_email: String! @rules(apply: ["email"])
+    contact_phone: String!
+    terms_accepted: Boolean!
+    # Credit-specific
+    idnp: String
+    birth_date: Date
+    id_card_front: String
+    id_card_back: String
+    notes: String
+}
+
+# ── Types ──────────────────────────────────────────────────────────────────────
+
+type ShippingRegion {
+    id: ID!
+    name: String!
+    shipping_cost: Float!
+}
+
+type CreditOptionsResult {
+    plans: [CreditPlanOption!]!
+    extras: [CreditExtra!]!
+    credit_min_rate: Float
+}
+
+type CreditPlanOption {
+    id: ID!
+    months: Int!
+    interest_label: String!
+    monthly_rate: Float!
+    total: Float!
+    is_zero_interest: Boolean!
+}
+
+type CreditExtra {
+    id: ID!
+    title: String!
+    price_per_month: Float!
+    available_durations: [Int!]!
+}
+
+type CartResult {
+    items: [CartItem!]!
+    subtotal: Float!
+    count: Int!
+}
+
+type CartItem {
+    article: String!
+    quantity: Int!
+    snapshot_price: Float!
+    snapshot_title: String!
+    snapshot_image: String
+    current_price: Float
+    current_stock: Int
+    current_title: String
+    current_image: String
+    rrp_old: Float
+    is_unavailable: Boolean!
+    stock_changed: Boolean!
+}
+
+type CheckoutTotals {
+    subtotal: Float!
+    discount: Float!
+    shipping_cost: Float!
+    total: Float!
+}
+
+type CouponResult {
+    success: Boolean!
+    error: String
+    discount_amount: Float
+    totals: CheckoutTotals
+}
+
+type PlaceOrderResult {
+    success: Boolean!
+    order_number: String
+    error: String
+}

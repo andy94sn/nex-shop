@@ -1,0 +1,57 @@
+extend type Query {
+    "Public site settings for the shop (Task 1)."
+    siteSettings: SiteSettings! @field(resolver: "Modules\\Settings\\GraphQL\\Queries\\SiteSettingsQuery")
+
+    """
+    Returns the current session token. Use this on app boot to obtain a token,
+    then send it as `X-Session-Token` header in every subsequent request.
+    The same token is also always echoed back in the response header.
+    """
+    sessionToken: String! @field(resolver: "Modules\\Settings\\GraphQL\\Queries\\SessionTokenQuery")
+
+    "Current session language + all active languages available to switch to."
+    languageContext: LanguageContext!
+        @field(resolver: "Modules\\Settings\\GraphQL\\Queries\\LanguageContextQuery")
+}
+
+extend type Mutation {
+    "Switch the active language in the session. Returns the new active language."
+    switchLanguage(code: String!): Language!
+        @field(resolver: "Modules\\Settings\\GraphQL\\Mutations\\SwitchLanguageMutation")
+}
+
+type LanguageContext {
+    current:   Language!
+    available: [Language!]!
+}
+
+type Language {
+    id:           ID!
+    code:         String!
+    title:        String!
+    native_title: String
+    flag:         String
+    is_default:   Boolean!
+    sort:         Int!
+}
+
+type SiteSettings {
+    site_name: String!
+    site_logo: String
+    site_favicon: String
+    contact_email: String
+    contact_phone: String
+    contact_address: String
+    currency_symbol: String!
+    currency_code: String!
+    default_locale: String!
+    seo_title: String
+    seo_description: String
+    seo_og_image: String
+    footer_text: String
+    footer_logo: String
+    footer_logo_dark: String
+    social_links: JSON
+    messenger_links: JSON
+    payment_methods: JSON
+}
