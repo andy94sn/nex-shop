@@ -6,21 +6,23 @@ namespace Modules\Commerce\GraphQL\Mutations;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use Modules\Commerce\GraphQL\Concerns\BuildsCartResult;
 use Modules\Interactions\Services\CartService;
-use Modules\Commerce\GraphQL\Queries\CartQuery;
+use Modules\Commerce\Services\CheckoutService;
 
 class ClearCartMutation
 {
+    use BuildsCartResult;
+
     public function __construct(
         private readonly CartService $cart,
-        private readonly CartQuery $cartQuery,
+        private readonly CheckoutService $checkout,
     ) {}
 
     public function __invoke(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): array
     {
-        $sessionId = request()->session()->getId();
-        $this->cart->clear($sessionId);
+        $this->cart->clear($this->sessionId());
 
-        return $this->cartQuery->__invoke($root, $args, $context, $info);
+        return $this->buildCartResult($this->sessionId());
     }
 }

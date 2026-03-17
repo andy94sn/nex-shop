@@ -35,20 +35,20 @@ extend type Query {
 
 extend type Mutation {
     # ── Wishlist (Task 14) ────────────────────────────────────────────────────
-    addToWishlist(article: String!): WishlistActionResult!
+    addToWishlist(id: ID!): WishlistActionResult!
         @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\AddToWishlistMutation")
 
-    removeFromWishlist(article: String!): WishlistActionResult!
+    removeFromWishlist(id: ID!): WishlistActionResult!
         @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\RemoveFromWishlistMutation")
 
     clearWishlist: Boolean!
         @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\ClearWishlistMutation")
 
     # ── Compare (Task 15) ─────────────────────────────────────────────────────
-    addToCompare(article: String!): CompareActionResult!
+    addToCompare(id: ID!): CompareActionResult!
         @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\AddToCompareMutation")
 
-    removeFromCompare(article: String!): Boolean!
+    removeFromCompare(id: ID!): Boolean!
         @field(resolver: "Modules\\Interactions\\GraphQL\\Mutations\\RemoveFromCompareMutation")
 
     clearCompareCategory(category_id: ID!): Boolean!
@@ -85,12 +85,12 @@ type WishlistActionResult {
 
 type CategoryRef {
     id: ID!
-    title: String!
+    title: String
+    slug: String
 }
 
 type CompareResult {
     products: [CompareProductItem!]!
-    attribute_groups: [CompareAttributeGroup!]!
 }
 
 type CompareProductItem {
@@ -98,19 +98,25 @@ type CompareProductItem {
     slug: String!
     title: String!
     subtitle: String
+    short_description: String
+    description: String
     image: String
     rrp: Float!
+    rrp_old: Float
     brand: BrandRef
+    attribute_groups: [CompareAttributeGroup!]!
 }
 
 type CompareAttributeGroup {
+    id: ID!
     title: String!
     attributes: [CompareAttribute!]!
 }
 
 type CompareAttribute {
+    id: ID!
     title: String!
-    values: [String]!
+    value: String
     is_same: Boolean!
 }
 
@@ -127,10 +133,13 @@ type SearchSuggestGroup {
 type SearchSuggestProduct {
     id: ID!
     title: String!
+    short_description: String
     image: String
     article: String!
+    code: String!
     slug: String!
     rrp: Float!
+    rrp_old: Float
 }
 
 type SearchResult {

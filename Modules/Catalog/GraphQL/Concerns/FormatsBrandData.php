@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\GraphQL\Concerns;
 
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\Models\Brand;
 
 /**
@@ -16,7 +17,7 @@ trait FormatsBrandData
     private function formatBrand(Brand $brand, string $locale): array
     {
         return [
-            'id'             => $brand->id,
+            'id'             => HasHashId::hashId($brand->id),
             'slug'           => $brand->getTranslation('slug', $locale, false),
             'title'          => $brand->title,
             'meta_title'     => $brand->getTranslation('meta_title', $locale, false),

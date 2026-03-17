@@ -50,10 +50,10 @@
                 <label>Telefon</label>
                 <span>{{ $order->contact_phone }}</span>
             </div>
-            @if($order->shippingRegion)
+            @if($order->shippingZone)
             <div class="info-item">
-                <label>Regiune livrare</label>
-                <span>{{ $order->shippingRegion->getTranslation('name', 'ro') }}</span>
+                <label>Zonă livrare</label>
+                <span>{{ $order->shippingZone->getTranslation('name', 'ro') }}</span>
             </div>
             @endif
             @if($order->shipping_address)
@@ -64,7 +64,11 @@
             @endif
             <div class="info-item">
                 <label>Metodă de plată</label>
-                <span>{{ ucfirst($order->payment_method) }}</span>
+                <span>{{ $order->paymentMethod?->getTranslation('name', 'ro') ?? '—' }}</span>
+            </div>
+            <div class="info-item">
+                <label>Metodă de livrare</label>
+                <span>{{ $order->deliveryMethod?->getTranslation('name', 'ro') ?? '—' }}</span>
             </div>
             <div class="info-item">
                 <label>Status</label>

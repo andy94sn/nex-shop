@@ -22,10 +22,10 @@ extend type Query {
     contactPage: ContactPageResult!
         @field(resolver: "Modules\\Content\\GraphQL\\Queries\\ContactPageQuery")
 
-    # ── Task 13 — Footer ─────────────────────────────────────────────────────
-    "Footer settings (Task 13)."
-    footerSettings: FooterSettings!
-        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\FooterSettingsQuery")
+    # ── Task 13 — Layout (header + footer + seo) ─────────────────────────────
+    "Global layout data: header, footer and default SEO (Task 13)."
+    layout: LayoutData!
+        @field(resolver: "Modules\\Content\\GraphQL\\Queries\\LayoutQuery")
 }
 
 extend type Mutation {
@@ -73,12 +73,32 @@ type Page {
     type: String!
     meta_title: String
     meta_description: String
+    images: [PageImage!]!
+    attachments: [PageAttachment!]!
+}
+
+type PageImage {
+    id: ID!
+    path: String!
+    alt: String
+    caption: String
+    is_cover: Boolean!
+    sort: Int!
+}
+
+type PageAttachment {
+    id: ID!
+    path: String!
+    label: String
+    mime_type: String
+    size: Int
+    sort: Int!
 }
 
 type FaqItem {
     id: ID!
-    question: String!
-    answer: String!
+    question: String
+    answer: String
     sort: Int!
 }
 
@@ -105,13 +125,34 @@ type ContactDepartment {
     sort: Int!
 }
 
-type FooterSettings {
+type LayoutData {
+    header: LayoutHeader!
+    footer: LayoutFooter!
+    seo: LayoutSeo!
+}
+
+type LayoutHeader {
+    site_name: String
+    site_logo: String
+    site_favicon: String
+    contact_phone: String
+    contact_email: String
+    messenger_links: [SiteLink!]!
+}
+
+type LayoutFooter {
     footer_text: String
     footer_logo: String
     footer_logo_dark: String
     social_links: [SiteLink!]!
     messenger_links: [SiteLink!]!
     payment_methods: [SiteLink!]!
+}
+
+type LayoutSeo {
+    title: String
+    description: String
+    og_image: String
 }
 
 type SiteLink {

@@ -40,7 +40,7 @@ trait ResolvesModelBySlug
     private function findActiveBySlug(string $modelClass, string $slug, string $locale): Model
     {
         return $modelClass::where("slug->{$locale}", $slug)
-            ->where('is_active', true)
+            // ->where('is_active', true)
             ->firstOrFail();
     }
 
@@ -53,8 +53,6 @@ trait ResolvesModelBySlug
      */
     private function findActiveBySlugOrNull(string $modelClass, string $slug, string $locale): ?Model
     {
-        return $modelClass::where("slug->{$locale}", $slug)
-            ->where('is_active', true)
-            ->first();
+        return $modelClass::where("slug->{$locale}", $slug)->active()->first();
     }
 }

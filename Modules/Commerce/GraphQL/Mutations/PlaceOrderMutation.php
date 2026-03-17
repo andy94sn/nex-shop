@@ -13,10 +13,13 @@ use Modules\Catalog\Models\Product;
 use Modules\Commerce\Models\Coupon;
 use Modules\Commerce\Models\Order;
 use Modules\Commerce\Models\OrderItem;
-use Modules\Commerce\Models\ShippingRegion;
+use Modules\Commerce\Models\PaymentMethod;
 use Modules\Commerce\Services\CheckoutService;
+use Modules\Commerce\Services\ShippingZoneService;
 use Modules\Interactions\Services\CartService;
 use Modules\Commerce\Mail\OrderConfirmationMail;
+use Modules\Settings\Models\SiteSettings;
+use Modules\Commerce\GraphQL\Concerns\ResolvesSessionId;
 
 /**
  * PlaceOrderMutation — validates cart, coupon, stock; creates Order + OrderItems;
@@ -24,14 +27,17 @@ use Modules\Commerce\Mail\OrderConfirmationMail;
  */
 class PlaceOrderMutation
 {
+    use ResolvesSessionId;
+
     public function __construct(
         private readonly CartService $cart,
         private readonly CheckoutService $checkout,
+        private readonly ShippingZoneService $shippingZones,
     ) {}
 
     public function __invoke(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): array
     {
-        $sessionId = request()->session()->getId();
+        $sessionId = $this->sessionId();
         $input     = $args['input'];
 
         // --- 1. Load cart ---
@@ -43,33 +49,44 @@ class PlaceOrderMutation
         // --- 2. Load checkout session ---
         $session = $this->checkout->getSession($sessionId);
 
-        // --- 3. Resolve shipping region ---
-        $shippingRegionId = $input['shipping_region_id'] ?? $session['shipping_region_id'] ?? null;
+        // Terms must be accepted
+        if (empty($session['terms_accepted'])) {
+            throw new UserError('Trebuie să acceptați termenii și condițiile pentru a plasa comanda.');
+        }
+
+        // --- 3. Resolve shipping zone + cost ---
+        $countryId        = $session['country_id']         ? (int) $session['country_id']         : null;
+        $cityId           = $session['city_id']            ? (int) $session['city_id']            : null;
+        $shippingZoneId   = $session['shipping_zone_id']   ? (int) $session['shipping_zone_id']   : null;
+        $deliveryMethodId = $session['delivery_method_id'] ? (int) $session['delivery_method_id'] : null;
+        $paymentMethodId  = $session['payment_method_id']  ? (int) $session['payment_method_id']  : null;
         $shippingCost     = 0.0;
-        if ($shippingRegionId) {
-            $region = ShippingRegion::find($shippingRegionId);
-            if (! $region) {
-                throw new UserError('Regiunea de livrare selectată nu este validă.');
-            }
-            $shippingCost = (float) $region->shipping_cost;
+        if ($countryId) {
+            $subtotalPreview = array_reduce($cartItems, fn ($c, $i) => $c + ($i['price'] * $i['quantity']), 0.0);
+            $shippingCost    = $this->shippingZones->resolve(
+                countryId:        $countryId,
+                cityId:           $cityId,
+                cartTotal:        $subtotalPreview,
+                deliveryMethodId: $deliveryMethodId,
+                paymentMethodId:  $paymentMethodId,
+            );
         }
 
         // --- 4. Validate & lock cart items (check stock) ---
-        $articles = array_column($cartItems, null, 'article');
-        $productSlugs = array_keys($articles);
-
-        $products = Product::whereIn('article', $productSlugs)
+        $products = Product::whereIn('id', array_column($cartItems, 'product_id'))
             ->get()
-            ->keyBy('article');
+            ->keyBy('id');
+
+        $allowBackorder = SiteSettings::instance()->allow_backorder;
 
         foreach ($cartItems as $item) {
-            $product = $products->get($item['article']);
+            $product = $products->get($item['product_id']);
             if (! $product) {
                 throw new UserError("Produsul '{$item['article']}' nu mai este disponibil.");
             }
-            if ($product->stock !== null && $product->stock < $item['quantity']) {
+            if (! $allowBackorder && $product->hasStockConflict($item['quantity'])) {
                 throw new UserError(
-                    "Stoc insuficient pentru '{$product->getTranslation('title', app()->getLocale())}'. Disponibil: {$product->stock}."
+                    "Stoc insuficient pentru '{$product->getTranslation('title', app()->getLocale())}'. Disponibil: {$product->quantity}."
                 );
             }
         }
@@ -83,26 +100,35 @@ class PlaceOrderMutation
 
         if ($couponCode) {
             $coupon = Coupon::where('code', strtoupper($couponCode))->first();
+
+            // Re-validate freshly at checkout time
             if (! $coupon || ! $coupon->isValid()) {
-                throw new UserError('Cuponul de reducere nu este valid sau a expirat.');
+                throw new UserError('Cuponul de reducere nu mai este valid sau a expirat.');
             }
+
+            // Check min_order_value against the actual subtotal
+            if (! $coupon->meetsMinOrder($subtotal)) {
+                throw new UserError(
+                    "Cuponul necesită o comandă minimă de {$coupon->min_order_value}."
+                );
+            }
+
             $couponId       = $coupon->id;
-            $couponDiscount = match ($coupon->type) {
-                'percentage' => round($subtotal * $coupon->value / 100, 2),
-                'fixed'      => min((float) $coupon->value, $subtotal),
-                default      => 0.0,
-            };
+            $couponDiscount = $coupon->discountFor($subtotal);
         }
 
         $total = max(0.0, $subtotal - $couponDiscount + $shippingCost);
 
-        // --- 6. Payment method ---
-        $paymentMethod = $input['payment_method'] ?? $session['payment_method'] ?? 'cash';
-        $creditPlanId  = $input['credit_plan_id']  ?? $session['credit_plan_id']  ?? null;
-        $creditExtras  = $input['credit_extras']   ?? $session['credit_extras']   ?? [];
+        // --- 6. Credit plan / extras ---
+        $creditPlanId = $input['credit_plan_id']  ?? $session['credit_plan_id']  ?? null;
+        $creditExtras = $input['credit_extras']   ?? $session['credit_extras']   ?? [];
 
         // --- 7. IDNP / birth_date required for credit ---
-        if ($paymentMethod === 'credit') {
+        // Resolve the PaymentMethod model to check if it requires a credit plan
+        $requiresCredit = $paymentMethodId
+            ? PaymentMethod::find($paymentMethodId)?->requires_credit_plan
+            : false;
+        if ($requiresCredit) {
             if (empty($input['idnp']) || empty($input['birth_date'])) {
                 throw new UserError('IDNP-ul și data nașterii sunt obligatorii pentru comanda în credit.');
             }
@@ -113,20 +139,23 @@ class PlaceOrderMutation
 
         // --- 8. Create order inside transaction ---
         $order = DB::transaction(function () use (
-            $cartItems, $products, $input, $paymentMethod, $creditPlanId, $creditExtras,
-            $shippingRegionId, $shippingCost, $couponId, $couponDiscount,
-            $subtotal, $total
+            $cartItems, $products, $input, $paymentMethodId, $deliveryMethodId,
+            $creditPlanId, $creditExtras, $shippingZoneId, $shippingCost,
+            $couponId, $couponDiscount, $subtotal, $total
         ) {
             $order = Order::create([
                 'status'                 => 'pending',
-                'payment_method'         => $paymentMethod,
+                'payment_method_id'      => $paymentMethodId,
+                'delivery_method_id'     => $deliveryMethodId,
                 'credit_plan_id'         => $creditPlanId,
                 'credit_extras_selected' => $creditExtras ?: null,
                 'contact_name'           => $input['contact_name'],
                 'contact_email'          => $input['contact_email'],
                 'contact_phone'          => $input['contact_phone'],
-                'shipping_region_id'     => $shippingRegionId,
-                'shipping_address'       => $input['shipping_address'] ?? null,
+                'shipping_zone_id'       => $shippingZoneId,
+                'shipping_address'       => isset($input['shipping_address'])
+                    ? json_encode($input['shipping_address'])
+                    : (isset($session['shipping_address']) ? json_encode($session['shipping_address']) : null),
                 'subtotal'               => round($subtotal, 2),
                 'discount'               => round($couponDiscount, 2),
                 'shipping_cost'          => round($shippingCost, 2),
@@ -139,7 +168,7 @@ class PlaceOrderMutation
             ]);
 
             foreach ($cartItems as $item) {
-                $product = $products->get($item['article']);
+                $product = $products->get($item['product_id']);
                 OrderItem::create([
                     'order_id'   => $order->id,
                     'product_id' => $product->id,
@@ -151,14 +180,14 @@ class PlaceOrderMutation
                 ]);
 
                 // Decrement stock if tracked
-                if ($product->stock !== null) {
-                    $product->decrement('stock', $item['quantity']);
+                if ($product->quantity !== null) {
+                    $product->decrement('quantity', $item['quantity']);
                 }
             }
 
-            // Mark coupon as used (increment usage)
+            // Mark coupon as used
             if ($couponId) {
-                Coupon::where('id', $couponId)->increment('times_used');
+                Coupon::where('id', $couponId)->increment('used_count');
             }
 
             return $order;

@@ -6,6 +6,8 @@ namespace Modules\Interactions\GraphQL\Mutations;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
+use Modules\Catalog\Models\Product;
 use Modules\Interactions\Services\WishlistService;
 
 class AddToWishlistMutation
@@ -14,8 +16,11 @@ class AddToWishlistMutation
 
     public function __invoke(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): array
     {
+        $productId = HasHashId::decodeHashId($args['id']);
+        $product   = Product::active()->findOrFail($productId);
+
         $sessionId = request()->session()->getId();
-        $this->wishlist->add($sessionId, $args['article']);
+        $this->wishlist->add($sessionId, $product->article);
 
         return [
             'success' => true,

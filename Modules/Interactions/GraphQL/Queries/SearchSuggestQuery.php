@@ -6,7 +6,9 @@ namespace Modules\Interactions\GraphQL\Queries;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\Models\Product;
+use Modules\Core\Services\LocaleService;
 
 /**
  * Quick-search suggest: returns up to `limit` products per call,
@@ -14,44 +16,54 @@ use Modules\Catalog\Models\Product;
  */
 class SearchSuggestQuery
 {
+    public function __construct(
+        private readonly LocaleService $locale,
+    ) {}
+
     public function __invoke(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): array
     {
-        $query  = trim($args['query']);
+        $term   = trim($args['query']);
         $limit  = (int) ($args['limit'] ?? 4);
-        $locale = app()->getLocale();
 
-        if (strlen($query) < 2) {
+        if (strlen($term) < 2) {
             return [];
         }
 
-        $products = Product::search($query)
+        $products = Product::search($term)
             ->take(max(12, $limit * 4))
             ->get()
-            ->load(['category', 'images' => fn ($q) => $q->orderBy('position')->limit(1)]);
+            ->load(['category', 'mainImage']);
 
-        // Group by category
+        // Group by translated category title
         $groups = [];
-        foreach ($products as $product) {
-            $catName = $product->category?->getTranslation('name', $locale) ?? 'Altele';
+        foreach ($products as $p) {
+            $catTitle = $p->category
+                ? $this->locale->trans($p->category, 'title')
+                : 'Altele';
 
-            if (! isset($groups[$catName])) {
-                $groups[$catName] = [];
+            if (! isset($groups[$catTitle])) {
+                $groups[$catTitle] = [];
             }
 
-            if (count($groups[$catName]) < $limit) {
-                $groups[$catName][] = [
-                    'id'      => $product->id,
-                    'article' => $product->article,
-                    'slug'    => $product->slug,
-                    'title'   => $product->getTranslation('title', $locale),
-                    'price'   => $product->price,
-                    'thumbnail' => $product->images->first()?->getFirstMediaUrl('product-images'),
+            if (count($groups[$catTitle]) < $limit) {
+                $groups[$catTitle][] = [
+                    'id'      => HasHashId::hashId($p->id),
+                    'title'   => $this->locale->trans($p, 'title'),
+                    'image'   => $p->mainImage->first()?->path,
+                    'article' => $p->article,
+                    'slug'    => $this->locale->trans($p, 'slug'),
+                    'rrp'     => $p->rrp,
+                    'rrp_old' => $p->rrp_old,
+                    'short_description' => $this->locale->trans($p, 'short_description'),
                 ];
             }
         }
 
         return array_map(
-            fn ($category, $items) => ['category' => $category, 'products' => $items],
+            fn ($category_title, $items) => [
+                'category_title' => $category_title,
+                'products'       => $items,
+            ],
             array_keys($groups),
             array_values($groups),
         );

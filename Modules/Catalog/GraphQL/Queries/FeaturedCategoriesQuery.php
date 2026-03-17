@@ -6,6 +6,7 @@ namespace Modules\Catalog\GraphQL\Queries;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\Models\Category;
 use Modules\Core\Services\LocaleService;
 
@@ -23,7 +24,7 @@ class FeaturedCategoriesQuery
             ->visibleInStore()
             ->get()
             ->map(fn (Category $c) => [
-                'id'             => $c->id,
+                'id'             => HasHashId::hashId($c->id),
                 'slug'           => $this->locale->trans($c, 'slug'),
                 'title'          => $this->locale->trans($c, 'title'),
                 'featured_image' => $c->featured_image,

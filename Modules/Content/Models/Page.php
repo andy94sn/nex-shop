@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Content\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Translatable\HasTranslations;
 use Spatie\Sluggable\HasSlug;
@@ -15,14 +16,24 @@ class Page extends Model
     use HasTranslations, HasSlug, SoftDeletes;
 
     public array $translatable = [
-        'title', 'content', 'intro_text',
-        'meta_title', 'meta_description',
+        'title',
+        'content',
+        'intro_text',
+        'meta_title',
+        'meta_description',
     ];
 
     protected $fillable = [
-        'slug', 'title', 'content', 'is_active', 'type',
-        'meta_title', 'meta_description',
-        'intro_text', 'map_lat', 'map_lng',
+        'slug',
+        'title',
+        'content',
+        'is_active',
+        'type',
+        'meta_title',
+        'meta_description',
+        'intro_text',
+        'map_lat',
+        'map_lng',
     ];
 
     protected $casts = [
@@ -34,8 +45,20 @@ class Page extends Model
     public function getSlugOptions(): SlugOptions
     {
         return SlugOptions::create()
-            ->generateSlugsFrom(fn (Page $model) => $model->getTranslation('title', 'ro'))
+            ->generateSlugsFrom(fn(Page $model) => $model->getTranslation('title', 'ro'))
             ->saveSlugsTo('slug')
             ->doNotGenerateSlugsOnUpdate();
+    }
+
+    // ── Relations ─────────────────────────────────────────────────────────
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(PageImage::class)->orderBy('sort');
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(PageAttachment::class)->orderBy('sort');
     }
 }

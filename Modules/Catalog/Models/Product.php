@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\Models;
 
+use App\Models\Concerns\HasHashId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,7 +18,7 @@ use Modules\Commerce\Models\CreditPlan;
 
 class Product extends Model
 {
-    use HasTranslations, HasTranslatableSlug, SoftDeletes, Searchable;
+    use HasHashId, HasTranslations, HasTranslatableSlug, SoftDeletes, Searchable;
 
     // ── Translatable ──────────────────────────────────────────────────────
     // 'title' and 'description' are JSON columns shared with B2B.
@@ -61,9 +62,6 @@ class Product extends Model
         'subtitle',
         'short_description',
         'price_eur',          // shop-specific EUR price (legacy alias)
-        'stock',              // shop-specific stock (legacy alias)
-        'is_active',          // shop active flag (kept for backward compat)
-        'is_new',             // manual "new" flag
         'youtube_url',   // shop video URL (legacy alias)
         'sort',
         'meta_title',
@@ -85,8 +83,6 @@ class Product extends Model
         'width'          => 'integer',
         'rrp_updated_at' => 'datetime',
         // Shared / shop
-        'is_active'      => 'boolean',
-        'is_new'         => 'boolean',
         'is_new_until'   => 'date',
         'rrp'            => 'float',
         'rrp_old'        => 'float',
@@ -119,6 +115,21 @@ class Product extends Model
     }
 
     // ── Computed attributes ────────────────────────────────────────────────
+
+    /**
+     * Returns true when the requested quantity exceeds the available stock.
+     *
+     * Used by:
+     *  - CartService::add() / updateQuantity()  — to block adding/updating if backorder is off
+     *  - CartQuery                               — to flag items whose stock changed since they were added
+     *  - PlaceOrderMutation                      — to block checkout when backorder is off
+     *
+     * Note: if quantity is null (not tracked) the product is treated as always available.
+     */
+    public function hasStockConflict(int $requestedQty): bool
+    {
+        return $this->quantity !== null && $requestedQty > $this->quantity;
+    }
 
     /**
      * True if status=1 OR is_active=true (backward compat with both schemas).
@@ -246,8 +257,7 @@ class Product extends Model
     public function scopeActive($query)
     {
         return $query->where(function ($q) {
-            $q->where('is_active', true)
-              ->orWhere('status', 1);
+            $q->where('status', true);
         });
     }
 
@@ -266,8 +276,7 @@ class Product extends Model
     public function scopeInStock($query)
     {
         return $query->where(function ($q) {
-            $q->where('quantity', '>', 0)
-              ->orWhere('stock', '>', 0);
+            $q->where('quantity', '>', 0);
         });
     }
 
@@ -288,5 +297,19 @@ class Product extends Model
     public function scopeOrderedBySort($query)
     {
         return $query->orderBy('sort');
+    }
+
+    /**
+     * Scope to get by article
+     */
+    public function scopeByArticle($query, string $article)
+    {
+        return $query->where('article', $article);
+    }
+
+    // Get by article method
+    static public function getByArticle(string $article): ?self
+    {
+        return self::byArticle($article)->active()->first();
     }
 }

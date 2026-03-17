@@ -20,13 +20,18 @@ class SiteSettings extends Model
         'footer_text',
     ];
 
-    protected $casts = [];
+    protected $casts = [
+        'allow_backorder'    => 'boolean',
+        'default_country_id' => 'integer',
+    ];
 
     protected $fillable = [
         'site_name', 'site_logo', 'site_favicon',
         'contact_email', 'contact_phone', 'contact_address',
         'terms_page_id',
         'currency_symbol', 'currency_code', 'default_locale',
+        'allow_backorder',
+        'default_country_id',
         'seo_title', 'seo_description', 'seo_og_image',
         'footer_text', 'footer_logo', 'footer_logo_dark',
     ];

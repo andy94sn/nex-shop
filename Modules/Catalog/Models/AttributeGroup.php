@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\Models;
 
+use App\Models\Concerns\HasHashId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +12,7 @@ use Spatie\Translatable\HasTranslations;
 
 class AttributeGroup extends Model
 {
-    use HasTranslations;
+    use HasHashId, HasTranslations;
 
     public array $translatable = ['title'];
 

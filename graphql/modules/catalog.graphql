@@ -182,7 +182,7 @@ type ProductCard {
     image: String
     rrp: Float!
     rrp_old: Float
-    stock: Int!
+    quantity: Int
     is_new: Boolean!
     discount_percentage: Int
     best_credit_label: String
@@ -243,13 +243,12 @@ type Product {
     article: String!
     status: String!
     is_new: Boolean!
-    is_new_until: Date
     image: String
     gallery: [ProductImage!]!
     rrp: Float!
     rrp_old: Float
     price_eur: Float
-    stock: Int!
+    quantity: Int
     discount_percentage: Int
     credit_min_rate: Float
     brand: Brand

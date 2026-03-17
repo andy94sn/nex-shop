@@ -24,11 +24,20 @@ class ShopBanner extends Model
         'valid_until' => 'datetime',
     ];
 
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeValid($query)
+    {
+        return $query
+            ->where(fn ($q) => $q->whereNull('valid_from')->orWhere('valid_from', '<=', now()))
+            ->where(fn ($q) => $q->whereNull('valid_until')->orWhere('valid_until', '>=', now()));
+    }
+
     public function scopeActiveAndValid($query)
     {
-        return $query->where('is_active', true)
-            ->where(fn ($q) => $q->whereNull('valid_from')->orWhere('valid_from', '<=', now()))
-            ->where(fn ($q) => $q->whereNull('valid_until')->orWhere('valid_until', '>=', now()))
-            ->orderBy('sort');
+        return $query->active()->valid()->orderBy('sort');
     }
 }

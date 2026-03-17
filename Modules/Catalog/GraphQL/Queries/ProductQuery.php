@@ -6,6 +6,7 @@ namespace Modules\Catalog\GraphQL\Queries;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\GraphQL\Concerns\ResolvesModelBySlug;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Models\Product;
@@ -43,11 +44,11 @@ class ProductQuery
             ->filter(fn($pav) => $pav->attributeValue?->attribute?->group !== null)
             ->groupBy(fn($pav) => $pav->attributeValue->attribute->group->id)
             ->map(fn($values) => [
-                'id'         => $values->first()->attributeValue->attribute->group->id,
+                'id'         => HasHashId::hashId($values->first()->attributeValue->attribute->group->id),
                 'title'      => $this->locale->trans($values->first()->attributeValue->attribute->group, 'title'),
                 'image'      => $values->first()->attributeValue->attribute->group->image,
                 'attributes' => $values->map(fn($pav) => [
-                    'id'    => $pav->attributeValue->attribute->id,
+                    'id'    => HasHashId::hashId($pav->attributeValue->attribute->id),
                     'title' => $this->locale->trans($pav->attributeValue->attribute, 'title'),
                     'value' => $this->locale->trans($pav->attributeValue, 'value'),
                 ])->toArray(),
@@ -57,7 +58,7 @@ class ProductQuery
 
         // Credit plans with calculated rates
         $creditPlans = $product->creditPlans->map(fn($plan) => [
-            'id'               => $plan->id,
+            'id'               => HasHashId::hashId($plan->id),
             'months'           => $plan->months,
             'interest_label'   => $plan->interest_label,
             'monthly_rate'     => $plan->monthlyRate($product->rrp),
@@ -70,7 +71,7 @@ class ProductQuery
             : null;
 
         return [
-            'id'                   => $product->id,
+            'id'                   => HasHashId::hashId($product->id),
             'slug'                 => $this->locale->trans($product, 'slug'),
             'title'                => $this->locale->trans($product, 'title'),
             'subtitle'             => $this->locale->trans($product, 'subtitle'),
@@ -80,24 +81,35 @@ class ProductQuery
             'is_new'               => $product->is_new,
             'is_new_until'         => $product->is_new_until,
             'image'                => $product->images->firstWhere('is_main', true)?->path,
-            'gallery'              => $product->images->toArray(),
+            'gallery'              => $product->images->map(fn($img) => [
+                'id'         => HasHashId::hashId($img->id),
+                'path'       => $img->path,
+                'is_main'    => $img->is_main,
+                'sort_order' => $img->sort_order,
+            ])->toArray(),
             'rrp'                  => $product->rrp,
             'rrp_old'              => $product->rrp_old,
             'price_eur'            => $product->price_eur,
             'stock'                => $product->stock,
             'discount_percentage'  => $product->discount_percentage,
             'credit_min_rate'      => $creditMinRate,
-            'brand'                => $product->brand ? ['id' => $product->brand->id, 'title' => $product->brand->title] : null,
+            'brand'                => $product->brand ? ['id' => HasHashId::hashId($product->brand->id), 'title' => $product->brand->title] : null,
             'category'             => $product->category ? [
-                'id'    => $product->category->id,
+                'id'    => HasHashId::hashId($product->category->id),
                 'slug'  => $this->locale->trans($product->category, 'slug'),
                 'title' => $this->locale->trans($product->category, 'title'),
             ] : null,
             'breadcrumb'           => $this->buildBreadcrumb($product->category, $locale),
-            'variants'             => $product->variants->toArray(),
+            'variants'             => $product->variants->map(fn($v) => [
+                'id'              => HasHashId::hashId($v->id),
+                'linked_article'  => $v->linked_article,
+                'color_value'     => $v->color_value,
+                'color_label'     => $v->color_label,
+                'option'          => $v->option,
+            ])->toArray(),
             'short_description'    => $this->locale->trans($product, 'short_description'),
             'description_sections' => $product->descriptionSections->map(fn($s) => [
-                'id'      => $s->id,
+                'id'      => HasHashId::hashId($s->id),
                 'title'   => $this->locale->trans($s, 'title'),
                 'content' => $this->locale->trans($s, 'content'),
                 'image'   => $s->image,
@@ -106,7 +118,7 @@ class ProductQuery
             'attribute_groups'     => $attributeGroups,
             'youtube_url'          => $product->youtube_url,
             'attachments'          => $product->attachments->map(fn($a) => [
-                'id'              => $a->id,
+                'id'              => HasHashId::hashId($a->id),
                 'title'           => $this->locale->trans($a, 'title'),
                 'filename'        => $a->filename,
                 'path'            => $a->path,
@@ -125,7 +137,7 @@ class ProductQuery
         if (! $category) return [];
 
         $breadcrumb = [[
-            'id'    => $category->id,
+            'id'    => HasHashId::hashId($category->id),
             'slug'  => $this->locale->trans($category, 'slug'),
             'title' => $this->locale->trans($category, 'title'),
         ]];
@@ -133,7 +145,7 @@ class ProductQuery
         $parent = $category->parent;
         while ($parent) {
             array_unshift($breadcrumb, [
-                'id'    => $parent->id,
+                'id'    => HasHashId::hashId($parent->id),
                 'slug'  => $this->locale->trans($parent, 'slug'),
                 'title' => $this->locale->trans($parent, 'title'),
             ]);

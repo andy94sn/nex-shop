@@ -8,16 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Commerce\Observers\OrderObserver;
 
 class Order extends Model
 {
     use SoftDeletes;
 
     protected $fillable = [
-        'order_number', 'status', 'payment_method',
+        'order_number', 'status',
+        'payment_method_id', 'delivery_method_id',
         'credit_plan_id', 'credit_extras_selected',
         'contact_name', 'contact_email', 'contact_phone',
-        'shipping_region_id', 'shipping_address',
+        'shipping_zone_id', 'shipping_address',
         'subtotal', 'discount', 'shipping_cost', 'total',
         'coupon_id', 'coupon_discount',
         'id_card_front', 'id_card_back', 'birth_date', 'idnp',
@@ -36,6 +38,8 @@ class Order extends Model
 
     protected static function booted(): void
     {
+        static::observe(OrderObserver::class);
+
         static::creating(function (Order $order) {
             if (empty($order->order_number)) {
                 $order->order_number = 'ORD-' . strtoupper(uniqid());
@@ -53,13 +57,23 @@ class Order extends Model
         return $this->belongsTo(CreditPlan::class);
     }
 
-    public function shippingRegion(): BelongsTo
+    public function shippingZone(): BelongsTo
     {
-        return $this->belongsTo(ShippingRegion::class);
+        return $this->belongsTo(ShippingZone::class);
     }
 
     public function coupon(): BelongsTo
     {
         return $this->belongsTo(Coupon::class);
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function deliveryMethod(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryMethod::class);
     }
 }

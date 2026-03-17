@@ -6,6 +6,7 @@ namespace Modules\Catalog\GraphQL\Queries;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\GraphQL\Concerns\AppliesProductFilters;
 use Modules\Catalog\GraphQL\Concerns\FormatsCategoryData;
 use Modules\Catalog\GraphQL\Concerns\FormatsProductCard;
@@ -88,7 +89,7 @@ class CategoryPageQuery
                 ->withCount(['products as count' => fn ($q) => $q->whereIn('category_id', $categoryIds)->active()])
                 ->get()
                 ->map(fn ($b) => [
-                    'id'    => $b->id,
+                    'id'    => HasHashId::hashId($b->id),
                     'title' => $b->title,
                     'count' => $b->count,
                 ])

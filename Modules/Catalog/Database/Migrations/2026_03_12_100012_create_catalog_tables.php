@@ -10,13 +10,21 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('attribute_groups', function (Blueprint $table) {
-            $table->unsignedInteger('sort')->default(0)->after('is_filter');
-        });
+        // attribute_groups already has is_filter (added by 2025_05_05_120011)
+        // we only add the sort column here
+        if (! Schema::hasColumn('attribute_groups', 'sort')) {
+            Schema::table('attribute_groups', function (Blueprint $table) {
+                $table->unsignedInteger('sort')->default(0)->after('is_filter');
+            });
+        }
 
         Schema::table('attributes', function (Blueprint $table) {
-            $table->boolean('is_filter')->default(false)->after('title');
-            $table->unsignedInteger('sort')->default(0)->after('is_filter');
+            if (! Schema::hasColumn('attributes', 'is_filter')) {
+                $table->boolean('is_filter')->default(false)->after('title');
+            }
+            if (! Schema::hasColumn('attributes', 'sort')) {
+                $table->unsignedInteger('sort')->default(0)->after('is_filter');
+            }
         });
 
         Schema::table('products', function (Blueprint $table) {
@@ -25,9 +33,6 @@ return new class extends Migration
             $table->json('subtitle')->nullable()->after('title');           // translatable – quick specs line
             $table->json('short_description')->nullable()->after('subtitle'); // translatable
             $table->decimal('price_eur', 12, 2)->nullable()->after('rrp_old');
-            $table->unsignedInteger('stock')->default(0)->after('price_eur');
-            $table->boolean('is_active')->default(true)->after('stock');
-            $table->boolean('is_new')->default(false)->after('is_active');
             $table->unsignedInteger('sort')->default(0)->after('is_new_until');
             // SEO (Task 3)
             $table->json('meta_title')->nullable()->after('sort');          // translatable
@@ -72,32 +77,37 @@ return new class extends Migration
         Schema::dropIfExists('product_attribute_values');
 
         Schema::table('product_files', function (Blueprint $table) {
-            $table->dropColumn(['title', 'file_type', 'file_size', 'locale']);
+            $cols = ['title', 'file_type', 'file_size', 'locale'];
+            $existing = array_filter($cols, fn($c) => Schema::hasColumn('product_files', $c));
+            if ($existing) {
+                $table->dropColumn(array_values($existing));
+            }
         });
 
         Schema::table('products', function (Blueprint $table) {
-            $table->dropForeign(['brand_id']);
-            $table->dropColumn([
-                'brand_id',
-                'slug',
-                'subtitle',
-                'short_description',
-                'price_eur',
-                'stock',
-                'is_active',
-                'is_new',
-                'sort',
-                'meta_title',
-                'meta_description',
-            ]);
+            if (Schema::hasColumn('products', 'brand_id')) {
+                $table->dropForeign(['brand_id']);
+            }
+            $cols = ['brand_id', 'slug', 'subtitle', 'short_description', 'price_eur', 'stock', 'is_active', 'is_new', 'sort', 'meta_title', 'meta_description'];
+            $existing = array_filter($cols, fn($c) => Schema::hasColumn('products', $c));
+            if ($existing) {
+                $table->dropColumn(array_values($existing));
+            }
         });
 
         Schema::table('attributes', function (Blueprint $table) {
-            $table->dropColumn(['is_filter', 'sort']);
+            $cols = ['is_filter', 'sort'];
+            $existing = array_filter($cols, fn($c) => Schema::hasColumn('attributes', $c));
+            if ($existing) {
+                $table->dropColumn(array_values($existing));
+            }
         });
 
+        // attribute_groups: only drop 'sort' — is_filter is owned by 2025_05_05_120011, image never existed here
         Schema::table('attribute_groups', function (Blueprint $table) {
-            $table->dropColumn(['image', 'is_filter', 'sort']);
+            if (Schema::hasColumn('attribute_groups', 'sort')) {
+                $table->dropColumn(['sort']);
+            }
         });
     }
 };

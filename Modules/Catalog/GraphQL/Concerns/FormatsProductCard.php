@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\GraphQL\Concerns;
 
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\Models\Product;
+use Modules\Core\Services\LocaleService;
 
 /**
  * Shared product-card formatter used by CategoryPageQuery, BrandPageQuery,
@@ -14,10 +16,14 @@ use Modules\Catalog\Models\Product;
  */
 trait FormatsProductCard
 {
+    public function __construct(
+        private readonly LocaleService   $locale,
+    ) {}
+
     private function formatProductCard(Product $p, array $wishlistItems, array $cartItems, string $locale): array
     {
         return [
-            'id'                   => $p->id,
+            'id'                   => HasHashId::hashId($p->id),
             'slug'                 => $this->locale->trans($p, 'slug'),
             'title'                => $this->locale->trans($p, 'title'),
             'subtitle'             => $this->locale->trans($p, 'subtitle'),
@@ -28,13 +34,13 @@ trait FormatsProductCard
             'image'                => $p->mainImage->first()?->path,
             'rrp'                  => $p->rrp,
             'rrp_old'              => $p->rrp_old,
-            'stock'                => $p->stock,
+            'quantity'             => $p->quantity,
             'is_new'               => $p->is_new,
             'discount_percentage'  => $p->discount_percentage,
             'best_credit_label'    => null,
             'is_in_wishlist'       => in_array($p->article, $wishlistItems, true),
-            'is_in_cart'           => in_array($p->article, $cartItems, true),
-            'brand'                => $p->brand ? ['id' => $p->brand->id, 'title' => $p->brand->title] : null,
+            'is_in_cart'           => in_array((string) $p->id, $cartItems, true),
+            'brand'                => $p->brand ? ['id' => HasHashId::hashId($p->brand->id), 'title' => $p->brand->title] : null,
             'variants'             => [],
             'description_sections' => [],
         ];

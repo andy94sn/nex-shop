@@ -4,62 +4,87 @@ extend type Query {
     creditOptions(product_slug: String!): CreditOptionsResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CreditOptionsQuery")
 
-    # ── Task 19 — Coupon ─────────────────────────────────────────────────────
-    # (applied via mutation — see below)
+    # ── Geography (countries + cities for checkout location picker) ───────────
+    "Active countries with their cities — used for the checkout location picker."
+    countries: [CountryOption!]!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CountriesQuery")
 
-    # ── Task 20 — Shipping Regions ───────────────────────────────────────────
-    "Active shipping regions (Task 20)."
-    shippingRegions: [ShippingRegion!]!
-        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\ShippingRegionsQuery")
+    # ── Shipping zones ────────────────────────────────────────────────────────
+    "Active shipping zones with their geographic coverage (countries / cities)."
+    shippingZones: [ShippingZone!]! #todo: Hide from public?
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\ShippingZonesQuery")
 
-    # ── Task 21a — Cart ──────────────────────────────────────────────────────
-    "Current session cart (Task 21a)."
+    # ── Delivery & payment methods ────────────────────────────────────────────
+    "Active delivery methods (shipping, pickup, …)."
+    deliveryMethods: [DeliveryMethodOption!]!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\DeliveryMethodsQuery")
+
+    "Active payment methods (cash, card, credit, …)."
+    paymentMethods: [PaymentMethodOption!]!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\PaymentMethodsQuery")
+
+    # ── Cart ──────────────────────────────────────────────────────────────────
+    "Current session cart."
     cart: CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CartQuery")
 
-    # ── Task 21b — Totals ────────────────────────────────────────────────────
-    "Calculate checkout totals dynamically (Task 21b)."
-    checkoutTotals: CheckoutTotals!
+    # ── Checkout totals ───────────────────────────────────────────────────────
+    "Calculate checkout totals dynamically."
+    checkoutTotals: CheckoutTotals! #todo: unnecessary?
         @field(resolver: "Modules\\Commerce\\GraphQL\\Queries\\CheckoutTotalsQuery")
 }
 
 extend type Mutation {
-    # ── Cart actions (Task 21a) ───────────────────────────────────────────────
-    addToCart(article: String!, quantity: Int = 1): CartResult!
+    # ── Cart actions ──────────────────────────────────────────────────────────
+    addToCart(id: ID!, quantity: Int = 1): CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\AddToCartMutation")
 
-    removeFromCart(article: String!): CartResult!
+    removeFromCart(id: ID!): CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\RemoveFromCartMutation")
 
-    updateCartQuantity(article: String!, quantity: Int!): CartResult!
+    updateCartQuantity(id: ID!, quantity: Int!): CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\UpdateCartQuantityMutation")
 
-    clearCart: Boolean!
+    clearCart: CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\ClearCartMutation")
 
-    # ── Checkout session setters (Task 21c) ───────────────────────────────────
-    setPaymentMethod(method: PaymentMethod!, credit_plan_id: ID, credit_extras: [CreditExtraInput!]): CheckoutTotals!
+    # ── Checkout session setters ──────────────────────────────────────────────
+    "Select a delivery method (shipping / pickup / …)."
+    setDeliveryMethod(delivery_method_id: ID!): CheckoutTotals!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\SetDeliveryMethodMutation")
+
+    "Select a payment method and optional credit details."
+    setPaymentMethod(
+        payment_method_id: ID!
+        credit_plan_id: ID
+        credit_extras: [CreditExtraInput!]
+    ): CheckoutTotals!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\SetPaymentMethodMutation")
 
-    setShippingRegion(region_id: ID!, address: String): CheckoutTotals!
+    """
+    Set the customer's shipping location (country + optional city) and optional
+    street address.  The matching shipping zone is resolved automatically.
+    """
+    setShipping(
+        country_id: ID!
+        city_id: ID
+        address: ShippingAddressInput
+    ): CheckoutTotals!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\SetShippingRegionMutation")
 
-    applyCoupon(code: String!): CouponResult!
+    applyCoupon(code: String!): CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\ApplyCouponMutation")
 
-    removeCoupon: CheckoutTotals!
+    removeCoupon: CartResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\RemoveCouponMutation")
 
-    # ── Place order (Task 21d) ────────────────────────────────────────────────
+    "Accept or decline terms and conditions. Must be called before placeOrder."
+    setTermsAccepted(accepted: Boolean!): CartResult!
+        @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\SetTermsAcceptedMutation")
+
+    # ── Place order ───────────────────────────────────────────────────────────
     placeOrder(input: PlaceOrderInput!): PlaceOrderResult!
         @field(resolver: "Modules\\Commerce\\GraphQL\\Mutations\\PlaceOrderMutation")
-}
-
-# ── Enums ──────────────────────────────────────────────────────────────────────
-
-enum PaymentMethod {
-    CASH
-    CREDIT
 }
 
 # ── Input types ────────────────────────────────────────────────────────────────
@@ -69,11 +94,23 @@ input CreditExtraInput {
     duration: Int!
 }
 
+"Structured shipping address provided by the customer."
+input ShippingAddressInput {
+    address: String!
+    address_line2: String
+    house: String
+    interphone: String
+    apartment_number: String
+    floor: String
+    notes: String
+}
+
 input PlaceOrderInput {
     contact_name: String!
     contact_email: String! @rules(apply: ["email"])
     contact_phone: String!
     terms_accepted: Boolean!
+    shipping_address: ShippingAddressInput
     # Credit-specific
     idnp: String
     birth_date: Date
@@ -82,13 +119,66 @@ input PlaceOrderInput {
     notes: String
 }
 
-# ── Types ──────────────────────────────────────────────────────────────────────
+# ── Geography ──────────────────────────────────────────────────────────────────
 
-type ShippingRegion {
+type CountryOption {
+    id: ID!
+    code: String!
+    name: String!
+    cities: [CityOption!]!
+}
+
+type CityOption {
     id: ID!
     name: String!
-    shipping_cost: Float!
 }
+
+# ── Shipping zones ─────────────────────────────────────────────────────────────
+
+type ShippingZone {
+    id: ID!
+    name: String!
+    default_cost: Float!
+    "Countries covered by this zone (whole-country coverage)."
+    countries: [ZoneCountry!]!
+    "Specific cities covered by this zone (city-level, overrides country)."
+    cities: [ZoneCity!]!
+}
+
+type ZoneCountry {
+    id: ID!
+    code: String!
+    name: String!
+}
+
+type ZoneCity {
+    id: ID!
+    name: String!
+    country: ZoneCountry!
+}
+
+# ── Delivery & payment methods ─────────────────────────────────────────────────
+
+type DeliveryMethodOption {
+    id: ID!
+    code: String!
+    name: String!
+    description: String
+    icon: String
+    requires_address: Boolean!
+}
+
+type PaymentMethodOption {
+    id: ID!
+    code: String!
+    name: String!
+    description: String
+    icon: String
+    is_online: Boolean!
+    requires_credit_plan: Boolean!
+}
+
+# ── Credit ─────────────────────────────────────────────────────────────────────
 
 type CreditOptionsResult {
     plans: [CreditPlanOption!]!
@@ -112,10 +202,13 @@ type CreditExtra {
     available_durations: [Int!]!
 }
 
+# ── Cart ───────────────────────────────────────────────────────────────────────
+
 type CartResult {
     items: [CartItem!]!
-    subtotal: Float!
     count: Int!
+    checkout: CartCheckout!
+    cart_totals: CartTotals!
 }
 
 type CartItem {
@@ -132,6 +225,99 @@ type CartItem {
     is_unavailable: Boolean!
     stock_changed: Boolean!
 }
+
+"Checkout session data attached to every CartResult."
+type CartCheckout {
+    delivery_method: CartDeliveryMethod
+    payment_method: CartPaymentMethod
+    credit_plan: CartCreditPlan
+    credit_extras: [CartCreditExtra!]!
+    country: CartCountry
+    city: CartCity
+    shipping_address: CartShippingAddress
+    coupon_code: String
+    terms_accepted: Boolean!
+}
+
+type CartCreditExtra {
+    extra_id: ID!
+    duration: Int!
+}
+
+type CartDeliveryMethod {
+    id: ID!
+    code: String!
+    name: String!
+    requires_address: Boolean!
+}
+
+type CartPaymentMethod {
+    id: ID!
+    code: String!
+    name: String!
+    requires_credit_plan: Boolean!
+    is_online: Boolean!
+    "IDs of delivery methods this payment method is compatible with. Empty means all are allowed."
+    allowed_delivery_method_ids: [ID!]!
+}
+
+type CartCreditPlan {
+    id: ID!
+    months: Int!
+    interest_label: String!
+    monthly_rate: Float
+    is_zero_interest: Boolean!
+}
+
+type CartCountry {
+    id: ID!
+    code: String!
+    name: String!
+}
+
+type CartCity {
+    id: ID!
+    name: String!
+}
+
+"Structured shipping address stored in the checkout session."
+type CartShippingAddress {
+    address: String!
+    address_line2: String
+    house: String
+    interphone: String
+    apartment_number: String
+    floor: String
+    notes: String
+}
+
+"Cart totals — subtotal, shipping, discounts, and final total."
+type CartTotals {
+    subtotal: Float!
+    discount: Float!
+    shipping_cost: Float!
+    "True when a delivery method is selected and it carries a shipping cost."
+    shipping_cost_visible: Boolean!
+    total: Float!
+    "Applied coupon details, null if no coupon is active."
+    coupon: CartAppliedCoupon
+}
+
+type CartAppliedCoupon {
+    code: String!
+    "Type of discount: 'percentage' or 'fixed'."
+    type: String!
+    "Raw coupon value (e.g. 10 for 10% or 10 MDL)."
+    value: Float!
+    "Actual monetary amount deducted from the subtotal. 0 when min_order_value is not met."
+    discount_amount: Float!
+    "Minimum order subtotal required to activate this coupon. Null = no requirement."
+    min_order_value: Float
+    "Whether the current cart subtotal satisfies the coupon's minimum order requirement."
+    is_met: Boolean!
+}
+
+# ── Checkout ───────────────────────────────────────────────────────────────────
 
 type CheckoutTotals {
     subtotal: Float!
@@ -152,3 +338,4 @@ type PlaceOrderResult {
     order_number: String
     error: String
 }
+

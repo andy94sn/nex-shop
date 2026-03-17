@@ -6,6 +6,7 @@ namespace Modules\Catalog\GraphQL\Queries;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\GraphQL\Concerns\AppliesProductFilters;
 use Modules\Catalog\GraphQL\Concerns\FormatsCategoryData;
 use Modules\Catalog\GraphQL\Concerns\FormatsProductCard;
@@ -57,7 +58,7 @@ class BrandPageQuery
             ->active()
             ->get()
             ->map(fn (Category $c) => [
-                'id'    => $c->id,
+                'id'    => HasHashId::hashId($c->id),
                 'slug'  => $this->locale->trans($c, 'slug'),
                 'title' => $this->locale->trans($c, 'title'),
             ])
@@ -65,7 +66,7 @@ class BrandPageQuery
 
         return [
             'brand' => [
-                'id'               => $brand->id,
+                'id'               => HasHashId::hashId($brand->id),
                 'slug'             => $this->locale->trans($brand, 'slug'),
                 'title'            => $brand->title,
                 'description'      => $brand->description,

@@ -6,6 +6,7 @@ namespace Modules\Interactions\GraphQL\Mutations;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Modules\Interactions\Services\CompareService;
 
 class ClearCompareCategoryMutation
@@ -14,7 +15,8 @@ class ClearCompareCategoryMutation
 
     public function __invoke(mixed $root, array $args, GraphQLContext $context, ResolveInfo $info): bool
     {
-        $this->compare->clearCategory(request()->session()->getId(), (int) $args['category_id']);
+        $categoryId = HasHashId::decodeHashId($args['category_id']);
+        $this->compare->clearCategory(request()->session()->getId(), $categoryId);
 
         return true;
     }

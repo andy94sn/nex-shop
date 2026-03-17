@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\GraphQL\Concerns;
 
+use App\Models\Concerns\HasHashId;
 use Modules\Catalog\Models\Category;
 
 /**
@@ -17,7 +18,7 @@ trait FormatsCategoryData
     private function formatCategory(Category $category, string $locale): array
     {
         return [
-            'id'               => $category->id,
+            'id'               => HasHashId::hashId($category->id),
             'slug'             => $this->locale->trans($category, 'slug'),
             'title'            => $this->locale->trans($category, 'title'),
             'description'      => $this->locale->trans($category, 'description'),
@@ -35,7 +36,7 @@ trait FormatsCategoryData
     private function formatCategoryBasic(Category $c, string $locale): array
     {
         return [
-            'id'    => $c->id,
+            'id'    => HasHashId::hashId($c->id),
             'slug'  => $this->locale->trans($c, 'slug'),
             'title' => $this->locale->trans($c, 'title'),
         ];
@@ -44,7 +45,7 @@ trait FormatsCategoryData
     private function buildBreadcrumb(Category $category, string $locale): array
     {
         $crumb = [[
-            'id'    => $category->id,
+            'id'    => HasHashId::hashId($category->id),
             'slug'  => $this->locale->trans($category, 'slug'),
             'title' => $this->locale->trans($category, 'title'),
         ]];
@@ -52,7 +53,7 @@ trait FormatsCategoryData
         $parent = $category->parent;
         while ($parent) {
             array_unshift($crumb, [
-                'id'    => $parent->id,
+                'id'    => HasHashId::hashId($parent->id),
                 'slug'  => $this->locale->trans($parent, 'slug'),
                 'title' => $this->locale->trans($parent, 'title'),
             ]);

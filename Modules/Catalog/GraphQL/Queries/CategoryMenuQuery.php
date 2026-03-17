@@ -6,6 +6,7 @@ namespace Modules\Catalog\GraphQL\Queries;
 
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use GraphQL\Type\Definition\ResolveInfo;
+use App\Models\Concerns\HasHashId;
 use Illuminate\Support\Facades\DB;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Models\Product;
@@ -55,13 +56,13 @@ class CategoryMenuQuery
     private function formatCategory(Category $c, string $locale, callable $countFor, array $rawCounts): array
     {
         return [
-            'id'             => $c->id,
+            'id'             => HasHashId::hashId($c->id),
             'slug'           => $c->getTranslation('slug', $locale, false),
             'title'          => $c->getTranslation('title', $locale, false),
             'image'          => $c->image,
             'products_count' => $countFor($c),
             'children'       => $c->children->map(fn (Category $child) => [
-                'id'             => $child->id,
+                'id'             => HasHashId::hashId($child->id),
                 'slug'           => $child->getTranslation('slug', $locale, false),
                 'title'          => $child->getTranslation('title', $locale, false),
                 'image'          => $child->image,
